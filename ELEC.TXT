@@ -1,0 +1,114 @@
+#CREATING TABLES
+CREATE TABLE CUS(METER_NUM Varchar2(4),Meter_Type Character(1), Prev_Reading Number(5),Current_Reading Number(5),Cus_Type Character(1),Last_Bill_payment Character(1) check("Last Bill payment"='Y' OR "Last Bill payment"='N'); 
+CREATE TABLE bill_DETAILS( "Meter Number" Varchar2(4) PRIMARY KEY, units number, rate number, amount number, subcharge number, Excise number, Net number );
+CREATE TABLE ELEC_BILL(USN_NUMBER NUMBER,CUS_NAME VARCHAR2(20),AMOUNT NUMBER,BILL_DATE DATE,DUE_DATE DATE,PAY_SATUS);
+
+#INSERTING VALUES INTO TABLES
+1.INSERT INTO CUS VALUES(&METER_NUM,'&METER_TYPE',&PREV_READING,&CURRENT_READING,'&CUS_TYPE','&LAST_BILL_PAY');
+  INSERT INTO CUS VALUES(1700,S,2000,4000,I,Y);
+  INSERT INTO CUS VALUES(1000,T,3500,7000,A,N);
+  INSERT INTO CUS VALUES(1000,S,2500,3000,I,N);
+  INSERT INTO CUS VALUES(2000,S,4000,6500,R,Y);
+
+2.INSERT INTO BILL_DETAILS VALUES(&METER,&UNITS,&RATE,&AMOUNT,&SUBCHARGE,&EXCISE,&NET);
+  INSERT INTO BILL_DETAILS VALUES(1200,2500,2.3,4600,10000,2200,16800);
+  INSERT INTO BILL_DETAILS VALUES(1300,2200,2,4000,8000,2000,14000);
+  INSERT INTO BILL_DETAILS VALUES(1250,3000,2.5,5200,16500,3600,25300);
+  INSERT INTO BILL_DETAILS VALUES(1100,2000,2,3600,10000,2400,16000);
+
+3.INSERT INTO ELEC_BILL VALUES(&USN_NUMBER,'&CUS_NAME',&AMOUNT,'&BILL_DATE','&DUE_DATE','&PAY_STATUS');
+  INSERT INTO ELEC_BILL VALUES(121212121,'MEGHANA',1500,'23-JAN-2022','18-FEB-2022','N');
+  INSERT INTO ELEC_BILL VALUES(232323223,'chandhini',2000,'12-mar-2022','8-apr-2022','y');
+  INSERT INTO ELEC_BILL VALUES(474747474,'sandhyA',2500,'11-APR-2022','20-MAY-2022','Y');
+  INSERT INTO ELEC_BILL VALUES(121212121,'PRIYA',3000,'25-JUL-2022','25-AUG-2022','N');
+
+
+1.#CREATING PROCEDURE WITH CURSOR 
+CREATE OR REPLACE PROCEDURE calculatebill AS v_cus cus%rowtype;
+v_bill bill%rowtype;
+CURSOR c1 IS
+SELECT *
+FROM cus;
+rate number(3,2);
+units number;
+amount number;
+subcharge number;
+Excise number;
+Net number;  
+BEGIN
+DELETE
+FROM bill;
+FOR v_cus IN c1 LOOP
+SELECT decode(v_cus."CusType",'A',3,'I',3.25,'C',2.00,'R',2.05) INTO rate
+FROM dual;
+SELECT decode(v_cus."Meter Type",'T',11,'S',9) INTO subcharge
+FROM dual;
+units:=v_cus."Current Reading"-v_customer."Previous Reading";
+amount:=rate*units;
+surcharge:=surcharge*amount;
+Excise:=(amount +Surcharge)*30/100;
+Net:= Amount +Surcharge + Excise;
+INSERT INTO bill
+VALUES(v_cus."Meter Number", units,
+       rate,
+       amount,
+       subcharge,
+       Excise,
+       Net);
+END LOOP;
+END;
+/
+
+EXECUTE CALCULATEBILL;
+SELECT * FROM CUS;
+SELECT * FROM BILL_DETAILS;
+
+2.#CREATING ANOTHER PROCEDURE
+CREATE OR REPLACE PROCEDURE ELEC_PROC(P_USN_NUMBER NUMBER,P_CUSTOMER_NAME OUT VARCHAR2,P_AMOUNT OUT NUMBER,P_DUE_DATE OUT DATE,P_MSG OUT VARCHAR2);
+AS
+L_COUNT NUMBER;
+BEGIN
+SELECT COUNT(*)
+INTO L_COUNT
+FROM ELECTRICITY_BILL
+WHERE USN_NUMBER = P_USN_NUMBER;
+IF L_COUNT = 0 THEN
+P_MSG : ='INVALID USN NUMBER.';
+ELSIF L_COUNT = 1 THEN
+SELECT CUSTOMER_NAME,AMOUNT,DUE_DATE
+INTO P_CUSTOMER_NAME,P_AMOUNT,P_DUE_DATE
+FROM ELECTRICITY_BILL
+WHERE USN_NUMBER = P_USN_NUMBER
+AND PAYMENT_STATUS = 'N';
+P_MSG:='PENDING DUE DETAILS';
+END IF;
+EXCEPTION
+WHEN NO_DATA_FOUND THEN
+P_MSG := 'NO PENDING DUES ARE THERE.';
+END ELECTRICITY_DETAILS_PROC;
+/
+set serveroutput on;
+declare
+   name varchar2(20);
+   amt number;
+   due_dt date;
+   msg varchar2(20);
+begin 
+   elec_proc(474747474,name,amt,due_dt,msg);
+   dbms_output.put_line(name||':'||':'||due_dt);
+   dbms_output.put_line(msg);
+end;
+/
+set serveroutput on;
+declare
+   name varchar2(20);
+   amt number;
+   due_dt date;
+   msg varchar2(20);
+begin 
+   elec_proC(121212121,name,amt,due_dt,msg);
+   dbms_output.put_line(name||':'||':'||due_dt);
+   dbms_output.put_line(msg);
+end;
+/
+
